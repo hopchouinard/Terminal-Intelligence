@@ -72,18 +72,31 @@ check_script() {
 
 # Function to cleanup on error
 cleanup_on_error() {
-    print_error "Setup failed. Please check the errors above and try again."
-    exit 1
+    local exit_code=$?
+    local line_number=$1
+    print_error "Setup failed at line $line_number with exit code $exit_code"
+    print_error "Please check the errors above and try again."
+    exit $exit_code
 }
 
-# Set error trap
-trap cleanup_on_error ERR
+# Set error trap with line number
+trap 'cleanup_on_error $LINENO' ERR
 
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
 print_header "Terminal Intelligence Setup Starting"
+
+# Verify we're in the correct directory
+print_status "Verifying working directory..."
+if [ ! -f "linux_TI.sh" ]; then
+    print_error "This script must be run from the Terminal-Intelligence directory!"
+    print_error "Current directory: $(pwd)"
+    print_error "Please cd to the Terminal-Intelligence directory and try again."
+    exit 1
+fi
+print_success "Running from correct directory: $(pwd)"
 
 # Step 1: Verify prerequisites
 print_header "Step 1: Verifying Prerequisites"
@@ -124,6 +137,9 @@ existing_files=0
 missing_files=0
 files_to_generate=()
 
+# Temporarily disable error exit for this section
+set +e
+
 # Check which files exist
 while IFS=',' read -r language filename; do
     # Skip header row
@@ -150,12 +166,33 @@ while IFS=',' read -r language filename; do
     fi
 done <languages.csv
 
+# Re-enable error exit
+set -e
+
 if [ $missing_files -eq 0 ]; then
     print_success "All commander files already exist ($existing_files files)"
 else
     print_status "Generating $missing_files missing commander files..."
     if ./batch_generate.sh; then
         print_success "Missing commander files generated successfully"
+
+        # Verify the files were actually created
+        print_status "Verifying generated files..."
+        verification_failed=0
+        for entry in "${files_to_generate[@]}"; do
+            IFS=':' read -r language filename <<<"$entry"
+            if [ -f "$filename" ]; then
+                print_success "Verified: $filename created successfully"
+            else
+                print_error "Failed: $filename was not created"
+                ((verification_failed++))
+            fi
+        done
+
+        if [ $verification_failed -gt 0 ]; then
+            print_error "$verification_failed commander files failed to generate"
+            exit 1
+        fi
     else
         print_error "Failed to generate commander files"
         exit 1
@@ -296,7 +333,35 @@ print_header "Step 5: Verification"
 
 print_status "Verifying created Ollama models..."
 echo "Available models:"
-ollama list | grep -E "(py-commander|js-commander|ps-commander|sh-commander|ts-commander)" || print_warning "No commander models found in ollama list"
+
+# Build a dynamic pattern from the CSV file
+model_patterns=""
+while IFS=',' read -r language filename; do
+    # Skip header row
+    if [ "$language" = "language" ]; then
+        continue
+    fi
+
+    # Trim whitespace
+    filename=$(echo "$filename" | xargs)
+
+    # Skip empty lines
+    if [ -z "$filename" ]; then
+        continue
+    fi
+
+    if [ -z "$model_patterns" ]; then
+        model_patterns="$filename"
+    else
+        model_patterns="$model_patterns|$filename"
+    fi
+done <languages.csv
+
+if [ -n "$model_patterns" ]; then
+    ollama list | grep -E "($model_patterns)" || print_warning "No commander models found in ollama list"
+else
+    print_warning "No model patterns found in languages.csv"
+fi
 
 print_status "Verifying aliases in .bashrc..."
 if grep -q "Ollama Commander Aliases" "$HOME/.bashrc"; then
