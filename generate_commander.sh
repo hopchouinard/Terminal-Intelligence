@@ -24,9 +24,14 @@ echo "$TEMPLATE_CONTENT" | sed "s/PowerShell/$REPLACEMENT/g" >"$OUTPUT_FILE"
 echo "Generated $OUTPUT_FILE with '$REPLACEMENT' replacing 'PowerShell'"
 
 # Create the Ollama model using the correct syntax
-if ollama create "$OUTPUT_FILE" -f "$OUTPUT_FILE" >/dev/null 2>&1; then
+echo "Creating Ollama model: $OUTPUT_FILE..."
+if ollama create "$OUTPUT_FILE" -f "$OUTPUT_FILE"; then
     echo "Successfully created Ollama model: $OUTPUT_FILE"
 else
-    echo "Warning: Failed to create Ollama model for $OUTPUT_FILE"
+    echo "Error: Failed to create Ollama model for $OUTPUT_FILE"
+    echo "This might be due to:"
+    echo "  - Base model 'gemma3:12b' not available"
+    echo "  - Ollama service not running"
+    echo "  - Invalid model file format"
     exit 1
 fi

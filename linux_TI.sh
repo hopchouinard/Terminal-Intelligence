@@ -75,6 +75,7 @@ cleanup_on_error() {
     local exit_code=$?
     local line_number=$1
     print_error "Setup failed at line $line_number with exit code $exit_code"
+    print_error "Last command: $BASH_COMMAND"
     print_error "Please check the errors above and try again."
     exit $exit_code
 }
@@ -129,6 +130,15 @@ if ! ollama list >/dev/null 2>&1; then
 fi
 print_success "Ollama service is running"
 
+print_status "Checking for base model (gemma3:12b)..."
+if ! ollama list | grep -q "gemma3:12b"; then
+    print_error "Base model 'gemma3:12b' not found!"
+    print_error "Please install the base model first:"
+    print_error "  ollama pull gemma3:12b"
+    exit 1
+fi
+print_success "Base model 'gemma3:12b' is available"
+
 # Step 2: Generate commander files
 print_header "Step 2: Checking/Generating Commander Files"
 
@@ -173,14 +183,27 @@ if [ $missing_files -eq 0 ]; then
     print_success "All commander files already exist ($existing_files files)"
 else
     print_status "Generating $missing_files missing commander files..."
-    if ./batch_generate.sh; then
+
+    # Temporarily disable error exit for the generation process
+    set +e
+    ./batch_generate.sh
+    generation_result=$?
+    set -e
+
+    if [ $generation_result -eq 0 ]; then
         print_success "Missing commander files generated successfully"
 
         # Verify the files were actually created
         print_status "Verifying generated files..."
         verification_failed=0
+
+        # Temporarily disable error exit for verification
+        set +e
         for entry in "${files_to_generate[@]}"; do
-            IFS=':' read -r language filename <<<"$entry"
+            # Split the entry safely
+            language=$(echo "$entry" | cut -d':' -f1)
+            filename=$(echo "$entry" | cut -d':' -f2)
+
             if [ -f "$filename" ]; then
                 print_success "Verified: $filename created successfully"
             else
@@ -188,13 +211,14 @@ else
                 ((verification_failed++))
             fi
         done
+        set -e
 
         if [ $verification_failed -gt 0 ]; then
             print_error "$verification_failed commander files failed to generate"
             exit 1
         fi
     else
-        print_error "Failed to generate commander files"
+        print_error "Failed to generate commander files (exit code: $generation_result)"
         exit 1
     fi
 fi
