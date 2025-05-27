@@ -67,8 +67,18 @@ echo "=================================="
 echo "Aliases added successfully!"
 echo ""
 echo "Reloading .bashrc..."
-source "$BASHRC_FILE"
-echo "✓ .bashrc reloaded successfully!"
+# Note: sourcing .bashrc in a script affects only the script's environment
+# It doesn't propagate to the parent shell
+if source "$BASHRC_FILE" 2>/dev/null; then
+    echo "✓ .bashrc reloaded successfully!"
+    echo ""
+    echo "🔄 Important: The aliases are active in this script's environment,"
+    echo "   but you may need to run 'source ~/.bashrc' manually in your"
+    echo "   current terminal to activate them there."
+else
+    echo "⚠️  Could not reload .bashrc automatically"
+    echo "   Please run 'source ~/.bashrc' manually to activate aliases"
+fi
 echo ""
 echo "Available aliases:"
 echo "------------------"

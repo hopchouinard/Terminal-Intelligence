@@ -339,8 +339,15 @@ if grep -q "Ollama Commander Aliases" "$HOME/.bashrc" 2>/dev/null; then
     else
         print_success "All aliases already exist ($existing_aliases aliases)"
         print_status "Reloading .bashrc to ensure aliases are active..."
-        source "$HOME/.bashrc"
-        print_success "✓ .bashrc reloaded successfully!"
+        # Note: sourcing .bashrc in a script doesn't affect the parent shell
+        # The user will need to run 'source ~/.bashrc' manually or restart their terminal
+        if source "$HOME/.bashrc" 2>/dev/null; then
+            print_success "✓ .bashrc reloaded successfully!"
+            print_warning "Note: You may need to run 'source ~/.bashrc' manually in your current terminal"
+        else
+            print_warning "Could not reload .bashrc automatically"
+            print_warning "Please run 'source ~/.bashrc' manually to activate aliases"
+        fi
     fi
 else
     print_status "No existing aliases found. Running create_aliases.sh..."
@@ -406,7 +413,13 @@ total_aliases=$((existing_aliases + missing_aliases))
 echo -e "${GREEN}✓${NC} Commander files: $total_languages files ready"
 echo -e "${GREEN}✓${NC} Ollama models: $total_models models available"
 echo -e "${GREEN}✓${NC} Bash aliases: $total_aliases aliases configured"
-echo -e "${GREEN}✓${NC} .bashrc reloaded and ready"
+
+# Check if aliases are actually available in current shell
+if command -v opy >/dev/null 2>&1 || alias opy >/dev/null 2>&1; then
+    echo -e "${GREEN}✓${NC} Aliases active in current shell"
+else
+    echo -e "${YELLOW}⚠${NC}  Aliases need manual activation (run: source ~/.bashrc)"
+fi
 
 if [ $missing_files -eq 0 ] && [ $missing_models -eq 0 ] && [ ${missing_aliases:-0} -eq 0 ]; then
     print_success "Terminal Intelligence is fully up to date! All components were already in place."
@@ -423,7 +436,23 @@ else
     fi
 fi
 
-print_status "You can now use commands like: opy, ojs, ops, osh, ots"
+# Final instructions
+echo ""
+print_header "🔄 Important: Activating Aliases"
+
+# Check if aliases are actually available
+if command -v opy >/dev/null 2>&1 || alias opy >/dev/null 2>&1; then
+    print_success "Aliases are already active in your current shell!"
+else
+    print_warning "Aliases are not yet active in your current shell."
+    echo -e "${YELLOW}📝 To activate them, run:${NC}"
+    echo -e "   ${BLUE}source ~/.bashrc${NC}"
+    echo ""
+    echo -e "${YELLOW}💡 Or simply open a new terminal window.${NC}"
+    echo ""
+fi
+
+print_status "You can then use commands like: opy, ojs, ops, osh, ots"
 print_status "Example: opy 'create a python script to read a CSV file'"
 print_status ""
 print_status "💡 Tip: You can add new languages to languages.csv and run this script again!"
