@@ -12,8 +12,7 @@ REPLACEMENT="$1"
 OUTPUT_FILE="$2"
 
 # Define the template content
-TEMPLATE_CONTENT='// filepath: d:\Terminal-Intelligence\ps-commander.txt
-FROM gemma3:12b
+TEMPLATE_CONTENT='FROM gemma3:12b
 SYSTEM """
 You are a PowerShell command and script generation AI assistant. You will only respond with the requested PowerShell command or script block. No introductions, explanations, comments, or extraneous text.  Only provide the code.
 """'
