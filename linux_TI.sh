@@ -145,7 +145,7 @@ print_header "Step 2: Checking/Generating Commander Files"
 print_status "Checking existing commander files..."
 existing_files=0
 missing_files=0
-files_to_generate=()
+declare -a files_to_generate
 
 # Temporarily disable error exit for this section
 set +e
@@ -168,11 +168,11 @@ while IFS=',' read -r language filename; do
 
     if [ -f "$filename" ]; then
         print_success "Found existing commander file: $filename"
-        ((existing_files++))
+        existing_files=$((existing_files + 1))
     else
         print_warning "Missing commander file: $filename"
         files_to_generate+=("$language:$filename")
-        ((missing_files++))
+        missing_files=$((missing_files + 1))
     fi
 done <languages.csv
 
@@ -208,7 +208,7 @@ else
                 print_success "Verified: $filename created successfully"
             else
                 print_error "Failed: $filename was not created"
-                ((verification_failed++))
+                verification_failed=$((verification_failed + 1))
             fi
         done
         set -e
@@ -254,27 +254,27 @@ while IFS=',' read -r language filename; do
     # Check if model already exists
     if echo "$existing_ollama_models" | grep -q "^${filename}$"; then
         print_success "Found existing Ollama model: $filename"
-        ((existing_models++))
+        existing_models=$((existing_models + 1))
         continue
     fi
 
     print_status "Creating Ollama model for $language ($filename)..."
-    ((missing_models++))
+    missing_models=$((missing_models + 1))
 
     # Check if the commander file exists
     if [ ! -f "$filename" ]; then
         print_warning "Commander file '$filename' not found, skipping..."
-        ((failed_models++))
+        failed_models=$((failed_models + 1))
         continue
     fi
 
     # Create the Ollama model
     if ollama create "$filename" -f "$filename" >/dev/null 2>&1; then
         print_success "Created model: $filename"
-        ((model_count++))
+        model_count=$((model_count + 1))
     else
         print_error "Failed to create model: $filename"
-        ((failed_models++))
+        failed_models=$((failed_models + 1))
     fi
 
 done <languages.csv
@@ -321,10 +321,10 @@ if grep -q "Ollama Commander Aliases" "$HOME/.bashrc" 2>/dev/null; then
 
         if grep -q "alias $alias_name=" "$HOME/.bashrc" 2>/dev/null; then
             print_success "Found existing alias: $alias_name"
-            ((existing_aliases++))
+            existing_aliases=$((existing_aliases + 1))
         else
             print_warning "Missing alias: $alias_name"
-            ((missing_aliases++))
+            missing_aliases=$((missing_aliases + 1))
         fi
     done <languages.csv
 
